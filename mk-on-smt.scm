@@ -311,11 +311,13 @@
 ; -> Goal
 (define (disj2 ig1 ig2)
   (lambda (ctx)
-    (lambdag@ (st)
-      (inc
-       (mplus*
-        ((ig1 (cons 'left ctx)) st)
-        ((ig2 (cons 'right ctx)) st))))))
+    (let ((g1 (ig1 (cons 'left ctx)))
+          (g2 (ig2 (cons 'right ctx))))
+      (lambdag@ (st)
+        (inc
+         (mplus*
+          (g1 st)
+          (g2 st)))))))
 
 (define-syntax disj*
   (syntax-rules ()
