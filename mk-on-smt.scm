@@ -311,13 +311,11 @@
 ; -> Goal
 (define (disj2 ig1 ig2)
   (lambda (ctx)
-    (let ((g1 (ig1 (cons 'left ctx)))
-          (g2 (ig2 (cons 'right ctx))))
-      (lambdag@ (st)
-        (inc
-         (mplus*
-          (g1 st)
-          (g2 st)))))))
+    (lambdag@ (st)
+      (inc
+       (mplus*
+        ((ig1 (cons 'left ctx)) st)
+        ((ig2 (cons 'right ctx)) st))))))
 
 (define-syntax disj*
   (syntax-rules ()
@@ -327,9 +325,14 @@
 (define-syntax conde
   (syntax-rules ()
     ((_ (ig0 ig ...) (ig1 ig^ ...) ...)
-     (disj*
-      (conj* ig0 ig ...)
-      (conj* ig1 ig^ ...) ...))))
+     (lambda (ctx)
+       (lambdag@ (st)
+         (inc
+          (((disj*
+              (conj* ig0 ig ...)
+              (conj* ig1 ig^ ...) ...)
+            ctx)
+           st)))))))
 #;
 (define-syntax conde
   (syntax-rules ()
@@ -350,6 +353,7 @@
               (take n
                     (inc
                      (((conj* (smt/declare q) ig ... smt/purge) '())
+
                       empty-state)))))))))
 #;
 (define-syntax run

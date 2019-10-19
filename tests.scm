@@ -62,3 +62,12 @@
 (test "closure-absento-2"
   (run* (q) (closure-absento q) (== q (make-closure 'x 'x '())))
   '())
+
+(define (anyo out)
+  (conde
+    ((== 1 out))
+    ((anyo out))))
+
+(test "anyo-1"
+  (run 1 (q) (anyo q))
+  '(1))
