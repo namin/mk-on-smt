@@ -76,7 +76,7 @@
     (smt-call '((get-model)))
     (let ((ms (cdr (read smt-in))))
       (let ((r (car (filter (lambda (x) (eq? (cadr x) (var-name q))) ms))))
-        (sinv (cadddr (cdr r)))))))
+        (sinv (cadddr (cdr r)) '())))))
 
 (define var-count 0)
 
@@ -118,7 +118,7 @@
         ((tagged-list? '/ x) (/ (cadr x) (caddr x)))
         (else (error 'simplify-real (format #f "unexpected real: ~a" x)))))
 
-(define (sinv x)
+(define (sinv x env)
   (cond
     ((equal? x '(sbool false)) #f)
     ((equal? x '(sbool true)) #t)
@@ -126,8 +126,18 @@
     ((tagged-list? 'sreal x) (simplify-real (cadr x)))
     ((equal? x 'snil) '())
     ((tagged-list? 'ssymbol x) (string->symbol (cadr x)))
-    ((tagged-list? 'scons x) `(,(sinv (cadr x)) . ,(sinv (caddr x))))
-    ((tagged-list? 'sclosure x) (make-closure (sinv (cadr x)) (sinv (caddr x)) (sinv (cadddr x))))
+    ((tagged-list? 'scons x) `(,(sinv (cadr x) env) . ,(sinv (caddr x) env)))
+    ((tagged-list? 'sclosure x) (make-closure (sinv (cadr x) env) (sinv (caddr x) env) (sinv (cadddr x) env)))
+    ((tagged-list? 'let x)
+     (let* ((binding (car (cadr x)))
+            (lhs (car binding))
+            (rhs (cadr binding))
+            (body (caddr x)))
+       (sinv body (cons (cons lhs (sinv rhs env)) env))))
+    ((symbol? x) (let ((p (assq x env)))
+                   (if p
+                       (cdr p)
+                       (error 'sinv (format #f "unknown symbol: ~a" x)))))
     (else (error 'sinv (format #f "not supported: ~a" x)))))
 
 (define (symbolo x)

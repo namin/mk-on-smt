@@ -40,3 +40,15 @@
 (test "conde-1"
   (run* (q) (conde ((== q 1)) ((== q 2)) ((== q 3))))
   '(1 2 3))
+
+(define (appendo l s out)
+  (conde
+    ((== l '()) (== s out))
+    ((fresh (a d res)
+       (== l (cons a d))
+       (== out (cons a res))
+       (appendo d s res)))))
+
+(test "rec-1"
+  (run 1 (q) (appendo '(a b) '(c d) q))
+  '((a b c d)))
