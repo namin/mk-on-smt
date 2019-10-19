@@ -135,11 +135,11 @@
     ((tagged-list? 'scons x) `(,(sinv (cadr x) env) . ,(sinv (caddr x) env)))
     ((tagged-list? 'sclosure x) (make-closure (sinv (cadr x) env) (sinv (caddr x) env) (sinv (cadddr x) env)))
     ((tagged-list? 'let x)
-     (let* ((binding (car (cadr x)))
-            (lhs (car binding))
-            (rhs (cadr binding))
+     (let* ((bindings (cadr x))
+            (lhss (map car bindings))
+            (rhss (map (lambda (x) (sinv (cadr x) env)) bindings))
             (body (caddr x)))
-       (sinv body (cons (cons lhs (sinv rhs env)) env))))
+       (sinv body (append (map cons lhss rhss) env))))
     ((symbol? x) (let ((p (assq x env)))
                    (if p
                        (cdr p)
@@ -152,6 +152,7 @@
 (define (numbero x)
   (smt/assert `(or ((_ is sint) ,(s x)) ((_ is sreal) ,(s x)))))
 
+#;
 (define (closure-absento x)
   (smt/assert `(closure-absent ,(s x))))
 
