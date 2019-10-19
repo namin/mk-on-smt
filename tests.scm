@@ -36,3 +36,7 @@
 (test "fresh-1"
   (run* (q) (fresh (x y) (== x q) (== y q) (== x 1)))
   '(1))
+
+(test "conde-1"
+  (run* (q) (conde ((== q 1)) ((== q 2)) ((== q 3))))
+  '(1 2 3))

@@ -26,7 +26,7 @@
 (define (smt-call xs)
   (for-each
     (lambda (x)
-      (printf "~s\n" x)
+      ;;(printf "~s\n" x)
       (fprintf smt-out "~s\n" x))
     xs)
   (flush-output-port smt-out))
@@ -257,11 +257,10 @@
     (let ((g1 (ig1 (cons 'left ctx)))
           (g2 (ig2 (cons 'right ctx))))
       (lambdag@ (st)
-        (inc
-         (bind*
-          st
-          g1
-          g2))))))
+        (bind*
+         st
+         g1
+         g2)))))
 
 (define-syntax conj*
   (syntax-rules ()
@@ -297,6 +296,18 @@
           (g1 st)
           (g2 st)))))))
 
+(define-syntax disj*
+  (syntax-rules ()
+    ((_ ig) ig)
+    ((_ ig0 ig ...) (disj2 ig0 (disj* ig ...)))))
+
+(define-syntax conde
+  (syntax-rules ()
+    ((_ (ig0 ig ...) (ig1 ig^ ...) ...)
+     (disj*
+      (conj* ig0 ig ...)
+      (conj* ig1 ig^ ...) ...))))
+#;
 (define-syntax conde
   (syntax-rules ()
     ((_ (g0 g ...) (g1 g^ ...) ...)
