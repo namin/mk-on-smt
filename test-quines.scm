@@ -53,6 +53,14 @@
         ((== y x) (== v t))
         ((=/= y x) (lookupo x rest t))))))
 
+(time-test "1 quine forward"
+  (run 1 (q)
+    (== q '((lambda (_.0) (list _.0 (list 'quote _.0)))
+            '(lambda (_.0) (list _.0 (list 'quote _.0)))))
+    (eval-expo q '() q))
+  '(((lambda (_.0) (list _.0 (list 'quote _.0)))
+     '(lambda (_.0) (list _.0 (list 'quote _.0))))))
+
 (time-test "1 quine"
   (run 1 (q) (eval-expo q '() q))
   '((((lambda (_.0) (list _.0 (list 'quote _.0)))

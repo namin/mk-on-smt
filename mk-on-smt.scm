@@ -349,14 +349,15 @@
             (g2 (ig2 ctx2)))
         (lambdag@ (st)
           (inc
-           (let ((st
-                  (((smt/assert `(or ,(assumption-id->symbol ctx1)
-                                     ,(assumption-id->symbol ctx2)))
-                    ctx)
-                   st)))
-             (mplus*
-              (g1 st)
-              (g2 st)))))))))
+           (bind*
+            (((smt/assert `(or ,(assumption-id->symbol ctx1)
+                               ,(assumption-id->symbol ctx2)))
+              ctx)
+             st)
+            (lambdag@ (st)
+              (mplus*
+               (g1 st)
+               (g2 st))))))))))
 
 (define-syntax disj*
   (syntax-rules ()
