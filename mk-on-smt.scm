@@ -113,12 +113,17 @@
 (define (tagged-list? tag x)
   (and (pair? x) (eq? (car x) tag)))
 
+(define (simplify-real x)
+  (cond ((number? x) x)
+        ((tagged-list? '/ x) (/ (cadr x) (caddr x)))
+        (else (error 'simplify-real (format #f "unexpected real: ~a" x)))))
+
 (define (sinv x)
   (cond
     ((equal? x '(sbool false)) #f)
     ((equal? x '(sbool true)) #t)
     ((tagged-list? 'sint x) (cadr x))
-    ((tagged-list? 'sreal x) (cadr x))
+    ((tagged-list? 'sreal x) (simplify-real (cadr x)))
     ((equal? x 'snil) '())
     ((tagged-list? 'ssymbol x) (string->symbol (cadr x)))
     ((tagged-list? 'scons x) `(,(sinv (cadr x)) . ,(sinv (caddr x))))
