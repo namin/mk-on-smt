@@ -1,3 +1,4 @@
+(load "helper.scm")
 (load "mk-on-smt.scm")
 (load "test-check.scm")
 

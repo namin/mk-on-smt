@@ -13,6 +13,7 @@
 
 (define (smt-read-sat)
   (let ([r (read smt-in)])
+    (printf ">> ~a\n" r)
     (cond
       ((eq? r 'sat)
        #t)
@@ -27,54 +28,80 @@
 (define (smt-call xs)
   (for-each
     (lambda (x)
-      ;;(printf "~s\n" x)
+      (printf "~s\n" x)
       (fprintf smt-out "~s\n" x))
     xs)
   (flush-output-port smt-out))
 
 (define empty-state '())
+;; a list of pairs of assumption variable id and z3 statements
+
+;; a set of asserted assumption variable ids
+(define empty-seen-assumptions '())
+(define seen-assumptions empty-seen-assumptions)
+(define (saw-assumption! id)
+  (set! seen-assumptions (t:bind id #t seen-assumptions)))
+(define (seen-assumption? id)
+  (t:lookup id seen-assumptions))
+(define (assumption-id->symbol id)
+  (string->symbol (format #f "_a~a" id)))
+(define assumption-count 0)
+(define (fresh-assumption-id!)
+  (set! assumption-count (+ 1 assumption-count))
+  (smt-call `((declare-const ,(assumption-id->symbol assumption-count) Bool)))
+  assumption-count)
 
 (define-structure (closure id body env))
+(define (smt/add-if-new ctx stmt st)
+  (if (seen-assumption? ctx)
+      st
+      (begin
+        (saw-assumption! ctx)
+        (smt-call (list stmt))
+        (cons (cons ctx stmt) st))))
 (define smt/check
   (lambda (st)
-    (smt-call '((reset)))
-    (smt-call '((declare-datatypes
-                  ((SExp 0))
-                  (((sbool   (s-bool Bool))
-                    (sint    (s-int Int))
-                    (sreal   (s-real Real))
-                    (ssymbol (s-symbol String))
-                    (sclosure (s-clo-id SExp) (s-clo-body SExp) (s-clo-env SExp))
-                    (snil)
-                    (scons   (s-car SExp) (s-cdr SExp)))))))
-    #;
-    (smt-call '((define-fun-rec closure-absent ((e SExp)) Bool ;
-    (ite ((_ is sclosure) e) false      ;
-    (ite ((_ is scons) e) (and (closure-absent (s-car e)) (closure-absent (s-cdr e))) ;
-    true)))))
-    (smt-call (reverse st))
-    (smt-call '((check-sat)))
+    (smt-call `((check-sat-assuming
+                 ,(map (lambda (x) (assumption-id->symbol (car x))) st))))
     (if (smt-read-sat)
         st
         #f)))
 
 (define (smt/declare x)
   (lambda (ctx)
-    (lambda (st)
-      (cons `(declare-const ,(var-name x) SExp) st))))
+    (lambdag@ (st)
+      (smt/add-if-new ctx `(declare-const ,(var-name x) SExp) st))))
 
 (define (smt/assert e)
   (lambda (ctx)
     (lambda (st)
       (smt/check
-       (cons `(assert ,e) st)))))
+       (smt/add-if-new ctx `(assert (= ,(assumption-id->symbol ctx) ,e)) st)))))
 
 (define smt/purge
   (lambda (ctx)
     smt/check))
 
 (define (smt/reset!)
-  (set! var-count 0))
+  (set! var-count 0)
+  (set! assumption-count 0)
+  (set! seen-assumptions empty-seen-assumptions)
+  (smt-call '((reset)))
+  (smt-call '((declare-datatypes
+               ((SExp 0))
+               (((sbool   (s-bool Bool))
+                 (sint    (s-int Int))
+                 (sreal   (s-real Real))
+                 (ssymbol (s-symbol String))
+                 (sclosure (s-clo-id SExp) (s-clo-body SExp) (s-clo-env SExp))
+                 (snil)
+                 (scons   (s-car SExp) (s-cdr SExp)))))))
+    #;
+    (smt-call '((define-fun-rec closure-absent ((e SExp)) Bool ;
+    (ite ((_ is sclosure) e) false      ;
+    (ite ((_ is scons) e) (and (closure-absent (s-car e)) (closure-absent (s-cdr e))) ;
+    true)))))
+  )
 
 (define (reify q)
   (lambda (st)
@@ -277,13 +304,18 @@
 ; -> Goal
 (define (conj2 ig1 ig2)
   (lambda (ctx)
-    (let ((g1 (ig1 (cons 'left ctx)))
-          (g2 (ig2 (cons 'right ctx))))
-      (lambdag@ (st)
-        (bind*
-         st
-         g1
-         g2)))))
+    (let ((ctx1 (fresh-assumption-id!))
+          (ctx2 (fresh-assumption-id!)))
+      (let ((g1 (ig1 ctx1))
+            (g2 (ig2 ctx2)))
+        (lambdag@ (st)
+          (bind*
+           st
+           ((smt/assert `(and ,(assumption-id->symbol ctx1)
+                              ,(assumption-id->symbol ctx2)))
+            ctx)
+           g1
+           g2))))))
 
 (define-syntax conj*
   (syntax-rules ()
@@ -311,13 +343,20 @@
 ; -> Goal
 (define (disj2 ig1 ig2)
   (lambda (ctx)
-    (let ((g1 (ig1 (cons 'left ctx)))
-          (g2 (ig2 (cons 'right ctx))))
-      (lambdag@ (st)
-        (inc
-         (mplus*
-          (g1 st)
-          (g2 st)))))))
+    (let ((ctx1 (fresh-assumption-id!))
+          (ctx2 (fresh-assumption-id!)))
+      (let ((g1 (ig1 ctx1))
+            (g2 (ig2 ctx2)))
+        (lambdag@ (st)
+          (inc
+           (let ((st
+                  (((smt/assert `(or ,(assumption-id->symbol ctx1)
+                                     ,(assumption-id->symbol ctx2)))
+                    ctx)
+                   st)))
+             (mplus*
+              (g1 st)
+              (g2 st)))))))))
 
 (define-syntax disj*
   (syntax-rules ()
@@ -354,7 +393,7 @@
          (map (reify q)
               (take n
                     (inc
-                     (((conj* (smt/declare q) ig ... smt/purge) '())
+                     (((conj* (smt/declare q) ig ... smt/purge) (fresh-assumption-id!))
 
                       empty-state)))))))))
 #;
