@@ -26,7 +26,7 @@
 (define (smt-call xs)
   (for-each
     (lambda (x)
-      ;;(printf "~s\n" x)
+      (printf "~s\n" x)
       (fprintf smt-out "~s\n" x))
     xs)
   (flush-output-port smt-out))
@@ -46,6 +46,10 @@
                     (sclosure (s-clo-id SExp) (s-clo-body SExp) (s-clo-env SExp))
                     (snil)
                     (scons   (s-car SExp) (s-cdr SExp)))))))
+    (smt-call '((define-fun-rec closure-absent ((e SExp)) Bool
+                  (if ((_ is sclosure) e) false
+                      (if ((_ is scons) e) (and (closure-absent (s-car e)) (closure-absent (s-cdr e)))
+                          true)))))
     (smt-call (reverse st))
     (smt-call '((check-sat)))
     (if (smt-read-sat)
@@ -145,6 +149,9 @@
 
 (define (numbero x)
   (smt/assert `(or ((_ is sint) ,(s x)) ((_ is sreal) ,(s x)))))
+
+(define (closure-absento x)
+  (smt/assert `(closure-absent ,(s x))))
 
 (define (=/= x y)
   (smt/assert `(not (= ,(s x) ,(s y)))))
@@ -329,15 +336,14 @@
 
 (define-syntax run
   (syntax-rules ()
-    ((_ n (q) ig)
+    ((_ n (q) ig ...)
      (begin
        (smt/reset!)
        (let ((q (var)))
          (map (reify q)
               (take n
                     (inc
-                     (((conj2 (conj2 (smt/declare q) ig)
-                              smt/purge) '())
+                     (((conj* (smt/declare q) ig ... smt/purge) '())
                       empty-state)))))))))
 #;
 (define-syntax run

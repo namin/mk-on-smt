@@ -52,3 +52,11 @@
 (test "rec-1"
   (run 1 (q) (appendo '(a b) '(c d) q))
   '((a b c d)))
+
+(test "closure-absento-1"
+  (run* (q) (closure-absento q) (== q 1))
+  '(1))
+
+(test "closure-absento-2"
+  (run* (q) (closure-absento q) (== q (make-closure 'x 'x '())))
+  '())
