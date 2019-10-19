@@ -26,13 +26,14 @@
 (define (smt-call xs)
   (for-each
     (lambda (x)
-      (printf "~a\n" x)
-      (fprintf smt-out "~a\n" x))
+      (printf "~s\n" x)
+      (fprintf smt-out "~s\n" x))
     xs)
   (flush-output-port smt-out))
 
 (define empty-state '())
 
+(define-structure (closure id body env))
 (define smt/check
   (lambda (st)
     (smt-call '((reset)))
@@ -42,6 +43,7 @@
                     (sint    (s-int Int))
                     (sreal   (s-real Real))
                     (ssymbol (s-symbol String))
+                    (sclosure (s-clo-id SExp) (s-clo-body SExp) (s-clo-env SExp))
                     (snil)
                     (scons   (s-car SExp) (s-cdr SExp)))))))
     (smt-call (reverse st))
@@ -51,22 +53,26 @@
         #f)))
 
 (define (smt/declare x)
-  (lambda (st)
-    (cons `(declare-const ,(var-name x) SExp) st)))
+  (lambda (ctx)
+    (lambda (st)
+      (cons `(declare-const ,(var-name x) SExp) st))))
 
 (define (smt/assert e)
-  (lambda (st)
-    (smt/check
-     (cons `(assert ,e) st))))
+  (lambda (ctx)
+    (lambda (st)
+      (smt/check
+       (cons `(assert ,e) st)))))
 
 (define smt/purge
-  smt/check)
+  (lambda (ctx)
+    smt/check))
 
 (define (smt/reset!)
   (set! var-count 0))
 
 (define (reify q)
   (lambda (st)
+    (smt/check st)
     (smt-call '((get-model)))
     (let ((ms (cdr (read smt-in))))
       (let ((r (car (filter (lambda (x) (eq? (cadr x) (var-name q))) ms))))
@@ -97,9 +103,10 @@
      (if (exact? x)
          `(sint ,x)
          `(sreal ,x)))
-    ((null? x) '(snil))
+    ((null? x) 'snil)
     ((symbol? x) `(ssymbol ,(symbol->string x)))
     ((pair? x) `(scons ,(s (car x)) ,(s (cdr x))))
+    ((closure? x) `(sclosure ,(s (closure-id x)) ,(s (closure-body x)) ,(s (closure-env x))))
     ((var? x) (var-name x))
     (else (error 's (format #f "not supported: ~a" x)))))
 
@@ -112,9 +119,10 @@
     ((equal? x '(sbool true)) #t)
     ((tagged-list? 'sint x) (cadr x))
     ((tagged-list? 'sreal x) (cadr x))
-    ((equal? x '(snil)) '())
+    ((equal? x 'snil) '())
     ((tagged-list? 'ssymbol x) (string->symbol (cadr x)))
     ((tagged-list? 'scons x) `(,(sinv (cadr x)) . ,(sinv (caddr x))))
+    ((tagged-list? 'sclosure x) (make-closure (sinv (cadr x)) (sinv (caddr x)) (sinv (cadddr x))))
     (else (error 'sinv (format #f "not supported: ~a" x)))))
 
 (define (symbolo x)
@@ -239,6 +247,17 @@
                     (inc (mplus* e ...))))))
 
 ; -> Goal
+(define (conj2 ig1 ig2)
+  (lambda (ctx)
+    (let ((g1 (ig1 (cons 'left ctx)))
+          (g2 (ig2 (cons 'right ctx))))
+      (lambdag@ (st)
+        (inc
+         (bind*
+          st
+          g1
+          g2))))))
+
 (define-syntax fresh
   (syntax-rules ()
     ((_ (x ...) g0 g ...)
@@ -249,6 +268,16 @@
 
 
 ; -> Goal
+(define (disj2 ig1 ig2)
+  (lambda (ctx)
+    (let ((g1 (ig1 (cons 'left ctx)))
+          (g2 (ig2 (cons 'right ctx))))
+      (lambdag@ (st)
+        (inc
+         (mplus*
+          (g1 st)
+          (g2 st)))))))
+
 (define-syntax conde
   (syntax-rules ()
     ((_ (g0 g ...) (g1 g^ ...) ...)
@@ -258,6 +287,19 @@
           (bind* (g0 st) g ...)
           (bind* (g1 st) g^ ...) ...))))))
 
+(define-syntax run
+  (syntax-rules ()
+    ((_ n (q) ig)
+     (begin
+       (smt/reset!)
+       (let ((q (var)))
+         (map (reify q)
+              (take n
+                    (inc
+                     (((conj2 (conj2 (smt/declare q) ig)
+                              smt/purge) '())
+                      empty-state)))))))))
+#;
 (define-syntax run
   (syntax-rules ()
     ((_ n (q) g0 g ...)
