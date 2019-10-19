@@ -1,3 +1,4 @@
+;;(define smt-cmd "cvc4 --lang=smt2.6 -m --incremental --fmf-fun")
 (define smt-cmd "z3 -in")
 
 (define-values (smt-out smt-in smt-err smt-p)
@@ -26,7 +27,7 @@
 (define (smt-call xs)
   (for-each
     (lambda (x)
-      (printf "~s\n" x)
+      ;;(printf "~s\n" x)
       (fprintf smt-out "~s\n" x))
     xs)
   (flush-output-port smt-out))
@@ -46,10 +47,11 @@
                     (sclosure (s-clo-id SExp) (s-clo-body SExp) (s-clo-env SExp))
                     (snil)
                     (scons   (s-car SExp) (s-cdr SExp)))))))
-    (smt-call '((define-fun-rec closure-absent ((e SExp)) Bool
-                  (if ((_ is sclosure) e) false
-                      (if ((_ is scons) e) (and (closure-absent (s-car e)) (closure-absent (s-cdr e)))
-                          true)))))
+    #;
+    (smt-call '((define-fun-rec closure-absent ((e SExp)) Bool ;
+    (ite ((_ is sclosure) e) false      ;
+    (ite ((_ is scons) e) (and (closure-absent (s-car e)) (closure-absent (s-cdr e))) ;
+    true)))))
     (smt-call (reverse st))
     (smt-call '((check-sat)))
     (if (smt-read-sat)
@@ -152,6 +154,9 @@
 
 (define (closure-absento x)
   (smt/assert `(closure-absent ,(s x))))
+
+(define (not-closureo x)
+  (smt/assert `(not ((_ is sclosure) ,(s x)))))
 
 (define (=/= x y)
   (smt/assert `(not (= ,(s x) ,(s y)))))
