@@ -263,6 +263,20 @@
           g1
           g2))))))
 
+(define-syntax conj*
+  (syntax-rules ()
+    ((_ ig) ig)
+    ((_ ig0 ig1 ig ...) (conj* (conj2 ig0 ig1) ig ...))))
+
+(define-syntax fresh
+  (syntax-rules ()
+    ((_ (x ...) ig0 ig ...)
+     (lambda (ctx)
+       (lambdag@ (st)
+         (inc
+          (let ((x (var)) ...)
+            (((conj* (smt/declare x) ... ig0 ig ...) ctx) st))))))))
+#;
 (define-syntax fresh
   (syntax-rules ()
     ((_ (x ...) g0 g ...)
