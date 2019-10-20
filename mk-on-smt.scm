@@ -33,7 +33,7 @@
     xs)
   (flush-output-port smt-out))
 
-(define empty-state '())
+(define empty-state '(0))
 ;; a list of pairs of assumption variable id and z3 statements
 
 ;; a set of asserted assumption variable ids
@@ -64,15 +64,28 @@
 (define right cdr)
 
 (define-structure (closure id body env))
+
 (define (smt/add-if-new ctx stmt st)
   (unless (seen-assumption? ctx)
       (saw-assumption! ctx)
       (smt-call (list stmt)))
-  (cons (cons ctx stmt) st))
+  (cons (car st) (cons (cons ctx stmt) (cdr st))))
+
+(define (inc-counter st)
+  (cons (+ 1 (car st)) (cdr st)))
+(define get-counter car)
+
+(define smt/check-sometimes
+  (lambda (st)
+    (let ((st (inc-counter st)))
+      (if (= (remainder (get-counter st) 30) 0)
+          (smt/check st)
+          st))))
+
 (define smt/check
   (lambda (st)
     (smt-call `((check-sat-assuming
-                 ,(map (lambda (x) (assumption-id->symbol (car x))) st))))
+                 ,(map (lambda (x) (assumption-id->symbol (car x))) (cdr st)))))
     (if (smt-read-sat)
         st
         #f)))
@@ -85,7 +98,7 @@
 (define (smt/assert e)
   (lambda (ctx)
     (lambda (st)
-      (smt/check
+      (smt/check-sometimes
        (smt/add-if-new ctx `(assert (= ,(assumption-id->symbol ctx) ,e)) st)))))
 
 (define smt/purge
