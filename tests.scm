@@ -102,3 +102,21 @@
         ((== x 2)))
       (== q x)))
   '(1 2))
+
+(test "cdcl-3"
+  (run* (q)
+    (fresh (x y)
+      (== x 1)
+      (anyo y)
+      (== x 2)))
+  '())
+
+(test "cdcl-4"
+  (run* (q)
+    (fresh (x y)
+      (== x 1)
+      (anyo y)
+      (conde
+        ((== x 2))
+        ((== x 3)))))
+  '())

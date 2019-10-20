@@ -13,7 +13,7 @@
 
 (define (smt-read-sat)
   (let ([r (read smt-in)])
-    ;;(printf ">> ~a\n" r)
+    (printf ">> ~a\n" r)
     (cond
       ((eq? r 'sat)
        #t)
@@ -28,7 +28,7 @@
 (define (smt-call xs)
   (for-each
     (lambda (x)
-      ;;(printf "~s\n" x)
+      (printf "~s\n" x)
       (fprintf smt-out "~s\n" x))
     xs)
   (flush-output-port smt-out))
