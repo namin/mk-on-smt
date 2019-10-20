@@ -151,3 +151,12 @@
       (anyo z)
       (manyn1o y 1000))) ;; slow
   '())
+
+(test "cdcl-7"
+  (run 1 (q)
+    (fresh (x y z)
+      (anyo x)
+      (== y 2)
+      (anyo z)
+      (many1o y 1000)))
+  '())
