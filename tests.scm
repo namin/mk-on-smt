@@ -54,6 +54,15 @@
   (run 1 (q) (appendo '(a b) '(c d) q))
   '((a b c d)))
 
+(test "rec-bwd-1"
+  (run* (q) (fresh (x y) (appendo x y '(a b c d))
+                   (== q (list x y))))
+  '((() (a b c d))
+    ((a) (b c d))
+    ((a b) (c d))
+    ((a b c) (d))
+    ((a b c d) ())))
+
 #;
 (test "closure-absento-1"
   (run* (q) (closure-absento q) (== q 1))
@@ -72,3 +81,24 @@
 (test "anyo-1"
   (run 1 (q) (anyo q))
   '(1))
+
+(test "cdcl-1"
+  (run* (q)
+    (fresh (x y)
+      (conde
+        ((== x 1))
+        ((== x 2)))
+      (conde
+        ((== y 1))
+        ((== y 2)))
+      (== q (cons x y))))
+  '((1 . 1) (2 . 1) (1 . 2) (2 . 2)))
+
+(test "cdcl-2"
+  (run* (q)
+    (fresh (x)
+      (conde
+        ((== x 1))
+        ((== x 2)))
+      (== q x)))
+  '(1 2))

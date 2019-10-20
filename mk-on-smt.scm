@@ -50,15 +50,25 @@
   (set! assumption-count (+ 1 assumption-count))
   (smt-call `((declare-const ,(assumption-id->symbol assumption-count) Bool)))
   assumption-count)
+(define empty-child-assumptions '())
+(define child-assumptions empty-child-assumptions)
+(define (get-child-assumptions! id)
+  (let ((r (t:lookup id child-assumptions)))
+    (if r
+        (data-val r)
+        (begin
+          (let ((new-cs (cons (fresh-assumption-id!) (fresh-assumption-id!))))
+            (set! child-assumptions (t:bind id new-cs child-assumptions))
+            new-cs)))))
+(define left car)
+(define right cdr)
 
 (define-structure (closure id body env))
 (define (smt/add-if-new ctx stmt st)
-  (if (seen-assumption? ctx)
-      st
-      (begin
-        (saw-assumption! ctx)
-        (smt-call (list stmt))
-        (cons (cons ctx stmt) st))))
+  (unless (seen-assumption? ctx)
+      (saw-assumption! ctx)
+      (smt-call (list stmt)))
+  (cons (cons ctx stmt) st))
 (define smt/check
   (lambda (st)
     (smt-call `((check-sat-assuming
@@ -83,9 +93,9 @@
     smt/check))
 
 (define (smt/reset!)
-  (set! var-count 0)
   (set! assumption-count 0)
   (set! seen-assumptions empty-seen-assumptions)
+  (set! child-assumptions empty-child-assumptions)
   (smt-call '((reset)))
   (smt-call '((declare-datatypes
                ((SExp 0))
@@ -111,22 +121,15 @@
       (let ((r (car (filter (lambda (x) (eq? (cadr x) (var-name q))) ms))))
         (sinv (cadddr (cdr r)) '())))))
 
-(define var-count 0)
-
-(define (var)
-  (set! var-count (+ 1 var-count))
+(define (var x id)
   (vector
-   (string->symbol (format #f "_v~a" var-count))
-   var-count))
+   (string->symbol (format #f "_v_~a_~a" x id))))
 
 (define (var? x)
   (vector? x))
 
 (define (var-name v)
   (vector-ref v 0))
-
-(define (var-id v)
-  (vector-ref v 1))
 
 (define (s x)
   (cond
@@ -304,18 +307,19 @@
 ; -> Goal
 (define (conj2 ig1 ig2)
   (lambda (ctx)
-    (let ((ctx1 (fresh-assumption-id!))
-          (ctx2 (fresh-assumption-id!)))
-      (let ((g1 (ig1 ctx1))
-            (g2 (ig2 ctx2)))
-        (lambdag@ (st)
-          (bind*
-           st
-           ((smt/assert `(and ,(assumption-id->symbol ctx1)
-                              ,(assumption-id->symbol ctx2)))
-            ctx)
-           g1
-           g2))))))
+    (let ((cs (get-child-assumptions! ctx)))
+      (let ((ctx1 (left cs))
+            (ctx2 (right cs)))
+        (let ((g1 (ig1 ctx1))
+              (g2 (ig2 ctx2)))
+          (lambdag@ (st)
+            (bind*
+             st
+             ((smt/assert `(and ,(assumption-id->symbol ctx1)
+                                ,(assumption-id->symbol ctx2)))
+              ctx)
+             g1
+             g2)))))))
 
 (define-syntax conj*
   (syntax-rules ()
@@ -328,7 +332,8 @@
      (lambda (ctx)
        (lambdag@ (st)
          (inc
-          (let ((x (var)) ...)
+          ;; this will break with macro-generated freshes
+          (let ((x (var 'x ctx)) ...)
             (((conj* (smt/declare x) ... ig0 ig ...) ctx) st))))))))
 #;
 (define-syntax fresh
@@ -343,21 +348,22 @@
 ; -> Goal
 (define (disj2 ig1 ig2)
   (lambda (ctx)
-    (let ((ctx1 (fresh-assumption-id!))
-          (ctx2 (fresh-assumption-id!)))
-      (let ((g1 (ig1 ctx1))
-            (g2 (ig2 ctx2)))
-        (lambdag@ (st)
-          (inc
-           (bind*
-            (((smt/assert `(or ,(assumption-id->symbol ctx1)
-                               ,(assumption-id->symbol ctx2)))
-              ctx)
-             st)
-            (lambdag@ (st)
-              (mplus*
-               (g1 st)
-               (g2 st))))))))))
+    (let ((cs (get-child-assumptions! ctx)))
+      (let ((ctx1 (left cs))
+            (ctx2 (right cs)))
+        (let ((g1 (ig1 ctx1))
+              (g2 (ig2 ctx2)))
+          (lambdag@ (st)
+            (inc
+             (bind*
+              (((smt/assert `(or ,(assumption-id->symbol ctx1)
+                                 ,(assumption-id->symbol ctx2)))
+                ctx)
+               st)
+              (lambdag@ (st)
+                (mplus*
+                 (g1 st)
+                 (g2 st)))))))))))
 
 (define-syntax disj*
   (syntax-rules ()
@@ -390,13 +396,14 @@
     ((_ n (q) ig ...)
      (begin
        (smt/reset!)
-       (let ((q (var)))
-         (map (reify q)
-              (take n
-                    (inc
-                     (((conj* (smt/declare q) ig ... smt/purge) (fresh-assumption-id!))
+       (let ((ctx (fresh-assumption-id!)))
+         (let ((q (var 'q ctx)))
+           (map (reify q)
+                (take n
+                      (inc
+                       (((conj* (smt/declare q) ig ... smt/purge) ctx)
 
-                      empty-state)))))))))
+                        empty-state))))))))))
 #;
 (define-syntax run
   (syntax-rules ()
