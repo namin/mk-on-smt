@@ -120,3 +120,25 @@
         ((== x 2))
         ((== x 3)))))
   '())
+
+(define (many1o x n)
+  (if (<= n 0)
+      (== x 1)
+      (conde
+        ((== x 1))
+        ((many1o x (- n 1))))))
+
+(define (manyn1o x n)
+  (if (<= n 0)
+      (== x 2)
+      (conde
+        ((== x (+ n 10)))
+        ((manyn1o x (- n 1))))))
+
+#;
+(test "cdcl-5"
+  (run 1 (q)
+    (fresh (x)
+      (many1o x 10000)
+      (manyn1o x 10000)))
+  '())
