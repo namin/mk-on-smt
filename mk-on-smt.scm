@@ -64,6 +64,7 @@
 (define right cdr)
 
 (define-structure (closure id body env))
+(define-structure (prim id))
 
 (define (smt/add-if-new ctx stmt st)
   (unless (seen-assumption? ctx)
@@ -117,6 +118,7 @@
                  (sreal   (s-real Real))
                  (ssymbol (s-symbol String))
                  (sclosure (s-clo-id SExp) (s-clo-body SExp) (s-clo-env SExp))
+                 (sprim (sprim-id SExp))
                  (snil)
                  (scons   (s-car SExp) (s-cdr SExp)))))))
     #;
@@ -156,6 +158,7 @@
     ((symbol? x) `(ssymbol ,(symbol->string x)))
     ((pair? x) `(scons ,(s (car x)) ,(s (cdr x))))
     ((closure? x) `(sclosure ,(s (closure-id x)) ,(s (closure-body x)) ,(s (closure-env x))))
+    ((prim? x) `(sprim ,(s (prim-id x))))
     ((var? x) (var-name x))
     (else (error 's (format #f "not supported: ~a" x)))))
 
@@ -177,6 +180,7 @@
     ((tagged-list? 'ssymbol x) (string->symbol (cadr x)))
     ((tagged-list? 'scons x) `(,(sinv (cadr x) env) . ,(sinv (caddr x) env)))
     ((tagged-list? 'sclosure x) (make-closure (sinv (cadr x) env) (sinv (caddr x) env) (sinv (cadddr x) env)))
+    ((tagged-list? 'sprim x) (make-prim (sinv (cadr x) env)))
     ((tagged-list? 'let x)
      (let* ((bindings (cadr x))
             (lhss (map car bindings))
@@ -201,6 +205,9 @@
 
 (define (not-closureo x)
   (smt/assert `(not ((_ is sclosure) ,(s x)))))
+
+(define (not-primo x)
+  (smt/assert `(not ((_ is sprim) ,(s x)))))
 
 (define (=/= x y)
   (smt/assert `(not (= ,(s x) ,(s y)))))
