@@ -79,7 +79,7 @@
 
 (define (smt/declare x)
   (lambda (ctx)
-    (lambdag@ (st)
+    (lambda (st)
       (smt/add-if-new ctx `(declare-const ,(var-name x) SExp) st))))
 
 (define (smt/assert e)
