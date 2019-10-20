@@ -68,7 +68,7 @@
    (=/= ((_.0 closure)) ((_.0 list)) ((_.0 quote)))
    (sym _.0))))
 
- (test "2 quines"
+ (time-test "2 quines"
    (run 2 (q) (eval-expo q '() q))
    '((((lambda (_.0) (list _.0 (list 'quote _.0)))
     '(lambda (_.0) (list _.0 (list 'quote _.0))))
@@ -83,7 +83,7 @@
     (sym _.0 _.1)
     (absento (closure _.2)))))
 
- (test "3 quines"
+ (time-test "3 quines"
    (run 3 (q) (eval-expo q '() q))
    '((((lambda (_.0) (list _.0 (list 'quote _.0)))
     '(lambda (_.0) (list _.0 (list 'quote _.0))))
@@ -106,7 +106,7 @@
     (sym _.0 _.1)
     (absento (closure _.2)))))
 
- (test "5 quines"
+ (time-test "5 quines"
    (run 5 (q) (eval-expo q '() q))
    '((((lambda (_.0) (list _.0 (list 'quote _.0)))
     '(lambda (_.0) (list _.0 (list 'quote _.0))))
@@ -141,7 +141,7 @@
          ((_.0 quote)) ((_.1 closure)))
     (sym _.0 _.1))))
 
- (test "10 quines"
+ (time-test "10 quines"
    (run 10 (q) (eval-expo q '() q))
    '((((lambda (_.0) (list _.0 (list 'quote _.0)))
     '(lambda (_.0) (list _.0 (list 'quote _.0))))
@@ -214,7 +214,7 @@
          ((_.0 quote)) ((_.1 closure)) ((_.1 list)) ((_.1 quote)))
     (sym _.0 _.1))))
 
- (test "40 quines"
+ (time-test "40 quines"
    (run 40 (q) (eval-expo q '() q))
    '((((lambda (_.0) (list _.0 (list 'quote _.0)))
     '(lambda (_.0) (list _.0 (list 'quote _.0))))
@@ -587,7 +587,7 @@
    (sym _.0 _.1 _.2)
    (absento (closure _.3)))))
 
-(test "2 twines"
+(time-test "2 twines"
   (run 2 (x) (fresh (p q)
 	       (=/= p q)
 	       (eval-expo p '() q)
@@ -621,7 +621,7 @@
     (sym _.0 _.1)
     (absento (closure _.2)))))
 
-(test "4 thrines"
+(time-test "4 thrines"
   (run 4 (x)
     (fresh (p q r)
       (=/= p q)
