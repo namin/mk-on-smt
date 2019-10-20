@@ -142,3 +142,12 @@
       (many1o x 10000)
       (manyn1o x 10000)))
   '())
+
+(test "cdcl-6"
+  (run 1 (q)
+    (fresh (x y z)
+      (anyo x)
+      (== y 1)
+      (anyo z)
+      (manyn1o y 1000))) ;; slow
+  '())
